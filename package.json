@@ -1,0 +1,12 @@
+{
+  "name": "pos-icp-integration",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Mauro Mendoza <msmendozael@icloud.com>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "prettier": "^3.3.2",
+    "prettier-plugin-motoko": "^0.8.4"
+  }
+}

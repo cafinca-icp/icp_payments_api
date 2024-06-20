@@ -1,0 +1,20 @@
+{
+  "recommendations": [
+    "aaron-bond.better-comments",
+    "mikestead.dotenv",
+    "donjayamanne.githistory",
+    "github.vscode-github-actions",
+    "GitHub.vscode-pull-request-github",
+    "eamodio.gitlens",
+    "ms-vsliveshare.vsliveshare",
+    "PKief.material-icon-theme",
+    "dfinity-foundation.vscode-motoko",
+    "esbenp.prettier-vscode",
+    "gurumukhi.selected-lines-count",
+    "NomicFoundation.hardhat-solidity",
+    "wayou.vscode-todo-highlight",
+    "Gruntfuggly.todo-tree",
+    "shardulm94.trailing-spaces",
+    "redhat.vscode-yaml"
+  ]
+}

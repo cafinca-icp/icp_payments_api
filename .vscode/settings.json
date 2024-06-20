@@ -1,0 +1,5 @@
+{
+  "trailing-spaces.trimOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+

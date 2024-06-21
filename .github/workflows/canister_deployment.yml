@@ -1,0 +1,42 @@
+# icp cannister deployment
+name: IC Canister Deployment
+
+on:
+  push:
+    branches:
+      - dev
+      - stg
+      - prd
+
+  workflow_run:
+    workflows: ["Prettier"]
+    types:
+      - completed
+
+  workflow_dispatch:
+
+jobs:
+  ic-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: dfx installation
+        uses: dfinity/setup-dfx@main
+
+      - name: Mainet deploy
+        run: |
+          dfx deploy --network ic --with-cycles $CYCLES_AMOUNT
+        env:
+          DFX_NETWORK: ${{ secrets.DFX_NETWORK }}
+          WALLET_ID: ${{ secrets.WALLET_ID }}
+          CYCLES_AMOUNT: ${{ secrets.CYCLES_AMOUNT }}

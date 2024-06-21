@@ -1,4 +1,4 @@
-# `pos-icp-integration`
+# POS ICP Integration
 
 ## Development environment setup
 

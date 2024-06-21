@@ -10,6 +10,12 @@ npm install -g yarn
 yarn install
 ```
 
+## Run formatting and linting
+
+```bash
+npx prettier --write --plugin=prettier-plugin-motoko **/*.mo
+```
+
 ## Running the project locally
 
 If you want to test your project locally, you can use the following commands:

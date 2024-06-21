@@ -1,0 +1,27 @@
+name: Prettier
+
+on:
+  push:
+    branches:
+      - dev
+      - stg
+      - prd
+      - feat/*
+      - refactor/*
+
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: latest
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Prettier
+        run: npx prettier --check --plugin=prettier-plugin-motoko src/**/*.mo

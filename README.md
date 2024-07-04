@@ -38,8 +38,34 @@ npm run generate
 
 at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.
 
+## icp-ledger-cannister deploy
+
+```bash
+dfx deploy icp_ledger_canister --argument "(variant {
+    Init = record {
+      minting_account = \"$(dfx ledger --identity anonymous account-id)\";
+      initial_values = vec {
+        record {
+          \"$(dfx ledger --identity default account-id)\";
+          record {
+            e8s = 10_000_000_000 : nat64;
+          };
+        };
+      };
+      send_whitelist = vec {};
+      transfer_fee = opt record {
+        e8s = 10_000 : nat64;
+      };
+      token_symbol = opt \"LICP\";
+      token_name = opt \"Local ICP\";
+    }
+  })
+"
+```
+
 ## deploying ckbtc ledger
 
+```bash
 deploy ckbtcledger
 dfx deploy --network local --specified-id mxzaz-hqaaa-aaaar-qaada-cai icrc1_ledger --argument '
 (variant {
@@ -67,3 +93,4 @@ controller_id = principal "7s5ng-b62ou-yb365-kgm6b-baeoa-6zfrp-k2a2d-yqud3-3txbe
 }
 })
 '
+```

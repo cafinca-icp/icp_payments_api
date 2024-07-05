@@ -38,59 +38,97 @@ npm run generate
 
 at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.
 
-## icp-ledger-cannister deploy
+## Local Deployment
+
+This is initially took from icpos example (and taking solana pay as reference) but with some twist. There are some improvements we want to implement in the future:
+
+- Multitoken payment (ckbtc, icp, cketh, clt and many others)
+- Enhanced transaction verification
+- Multi instruction transactions (smart payments)
+
+### Step 1: Start a local instance of the replica:
 
 ```bash
-dfx deploy icp_ledger_canister --argument "(variant {
-    Init = record {
-      minting_account = \"$(dfx ledger --identity anonymous account-id)\";
-      initial_values = vec {
-        record {
-          \"$(dfx ledger --identity default account-id)\";
-          record {
-            e8s = 10_000_000_000 : nat64;
-          };
-        };
-      };
-      send_whitelist = vec {};
-      transfer_fee = opt record {
-        e8s = 10_000 : nat64;
-      };
-      token_symbol = opt \"LICP\";
-      token_name = opt \"Local ICP\";
-    }
-  })
-"
+dfx start --clean --background
 ```
 
-## deploying ckbtc ledger
+### Step 2: Deploy the Internet Identity canister:
+
+Integration with the [Internet Identity](https://internetcomputer.org/internet-identity/) allows store owners to securely setup and manage their store. The Internet Identity canister is already deployed on the IC mainnet. For local development, you need to deploy it to your local instance of the IC.
 
 ```bash
-deploy ckbtcledger
+dfx deploy --network local internet_identity
+```
+
+### Step 3: Save the current principal as a variable:
+
+The principal will be used when deploying the ledger canister.
+
+```bash
+export OWNER=$(dfx identity get-principal)
+```
+
+### Step 3: Deploy the ckBTC ledger canister:
+
+The responsibilities of the ledger canister is to keep track of token balances and handle token transfers.
+
+The ckBTC ledger canister is already deployed on the IC mainnet. ckBTC implements the [ICRC-1](https://internetcomputer.org/docs/current/developer-docs/integrations/icrc-1/) token standard. For local development, we deploy the ledger for an ICRC-1 token mimicking the mainnet setup.
+
+Take a moment to read the details of the call we are making below. Not only are we deploying the ledger canister, we are also:
+
+- Deploying the canister to the same canister ID as the mainnet ledger canister. This is to make it easier to switch between local and mainnet deployments.
+- Naming the token `Local ckBTC / LCKBTC`
+- Setting the owner principal to the principal we saved in the previous step.
+- Minting 100_000_000_000 tokens to the owner principal.
+- Setting the transfer fee to 10 LCKBTC.
+
+```bash
 dfx deploy --network local --specified-id mxzaz-hqaaa-aaaar-qaada-cai icrc1_ledger --argument '
-(variant {
-Init = record {
-token_name = "Local ckBTC";
-token_symbol = "LCKBTC";
-minting_account = record {
-owner = principal "7s5ng-b62ou-yb365-kgm6b-baeoa-6zfrp-k2a2d-yqud3-3txbe-qdwci-iae";
-};
-initial_balances = vec {
-record {
-record {
-owner = principal "7s5ng-b62ou-yb365-kgm6b-baeoa-6zfrp-k2a2d-yqud3-3txbe-qdwci-iae";
-};
-100_000_000_000;
-};
-};
-metadata = vec {};
-transfer_fee = 10;
-archive_options = record {
-trigger_threshold = 2000;
-num_blocks_to_archive = 1000;
-controller_id = principal "7s5ng-b62ou-yb365-kgm6b-baeoa-6zfrp-k2a2d-yqud3-3txbe-qdwci-iae";
-}
-}
-})
+  (variant {
+    Init = record {
+      token_name = "Local ckBTC";
+      token_symbol = "LCKBTC";
+      minting_account = record {
+        owner = principal "'${OWNER}'";
+      };
+      initial_balances = vec {
+        record {
+          record {
+            owner = principal "'${OWNER}'";
+          };
+          100_000_000_000;
+        };
+      };
+      metadata = vec {};
+      transfer_fee = 10;
+      archive_options = record {
+        trigger_threshold = 2000;
+        num_blocks_to_archive = 1000;
+        controller_id = principal "'${OWNER}'";
+      }
+    }
+  })
 '
+```
+
+### Step 4: Deploy the index canister:
+
+The index canister syncs the ledger transactions and indexes them by account.
+
+```bash
+dfx deploy --network local icrc1_index --argument '
+  record {
+   ledger_id = (principal "mxzaz-hqaaa-aaaar-qaada-cai");
+  }
+'
+```
+
+### Step 5: Deploy the pos-icp-integration-backend canister:
+
+The pos-icp-integration-backend canister manages the payment data generation and log a message when a payment is received.
+
+The `--argument '(0)'` argument is used to initialize the canister with `startBlock` set to 0. This is used to tell the canister to start monitoring the ledger from block 0. When deploying to the IC mainnet, this should be set to the current block height to prevent the canister from processing old transactions.
+
+```bash
+dfx deploy --network local pos-icp-integration-backend --argument '(0)'
 ```

@@ -1,82 +1,166 @@
-import IcpLedger "canister:icp_ledger_canister";
-import Debug "mo:base/Debug";
-import Result "mo:base/Result";
-import Option "mo:base/Option";
-import Blob "mo:base/Blob";
-import Error "mo:base/Error";
+// Importing base modules
 import Array "mo:base/Array";
+import Debug "mo:base/Debug";
+import Nat "mo:base/Nat";
+import Nat64 "mo:base/Nat64";
 import Principal "mo:base/Principal";
+import Text "mo:base/Text";
+import Time "mo:base/Time";
+import Trie "mo:base/Trie";
+import Buffer "mo:base/Buffer";
 
-actor {
-  type Tokens = {
-    e8s : Nat64;
+// Importing local modules
+import MainTypes "main.types";
+import CkBtcLedger "canister:icrc1_ledger";
+
+/**
+*  This actor is responsible for:
+*  - Storing merchant information
+*  - Monitoring the ledger for new transactions
+*  - Notifying merchants of new transactions
+*
+*  `_startBlock` is the block number to start monitoring transactions from.
+*/
+shared (actorContext) actor class Main(_startBlock : Nat) {
+
+  private stable var merchantStore : Trie.Trie<Text, MainTypes.Merchant> = Trie.empty();
+  private stable var latestTransactionIndex : Nat = 0;
+  private var logData = Buffer.Buffer<Text>(0);
+
+  /**
+    *  Get the merchant's information
+    */
+  public query (context) func getMerchant() : async MainTypes.Response<MainTypes.Merchant> {
+    let caller : Principal = context.caller;
+
+    switch (Trie.get(merchantStore, merchantKey(Principal.toText(caller)), Text.equal)) {
+      case (?merchant) {
+        {
+          status = 200;
+          status_text = "OK";
+          data = ?merchant;
+          error_text = null;
+        };
+      };
+      case null {
+        {
+          status = 404;
+          status_text = "Not Found";
+          data = null;
+          error_text = ?("Merchant with principal ID: " # Principal.toText(caller) # " not found.");
+        };
+      };
+    };
   };
 
-  type TransferArgs = {
-    amount : Tokens;
-    recipient : Principal;
-    toSubaccount : ?Blob;
+  /**
+    * Update the merchant's information
+    */
+  public shared (context) func updateMerchant(merchant : MainTypes.Merchant) : async MainTypes.Response<MainTypes.Merchant> {
+
+    let caller : Principal = context.caller;
+    merchantStore := Trie.replace(
+      merchantStore,
+      merchantKey(Principal.toText(caller)),
+      Text.equal,
+      ?merchant,
+    ).0;
+    {
+      status = 200;
+      status_text = "OK";
+      data = ?merchant;
+      error_text = null;
+    };
   };
 
-  public shared ({ caller }) func makeTransaction(args : TransferArgs) : async Result.Result<IcpLedger.Transaction, Text> {
-    Debug.print(
-      "Transferring "
-      # debug_show (args.amount)
-      # " tokens to principal "
-      # debug_show (args.recipient)
-      # " subaccount "
-      # debug_show (args.toSubaccount)
-    );
+  public query (context) func getTxURL(amount : Nat) : async Text {
+    let recipient : Principal = context.caller;
+    return "ckbtc:" # Principal.toText(recipient) # "?amount" # Nat.toText(amount);
+  };
 
-    let transferArgs : IcpLedger.TransferArgs = {
-      // can be used to distinguish between transactions
-      memo = 0;
-      // the amount we want to transfer
-      amount = args.amount;
-      // the ICP ledger charges 10_000 e8s for a transfer
-      fee = { e8s = 10_000 };
-      // we are transferring from the canisters default subaccount, therefore we don't need to specify it
-      from_subaccount = null;
-      // we take the principal and subaccount from the arguments and convert them into an account identifier
-      // TODO: review Principal and Subaccount definitions
-      to = Blob.toArray(Principal.toLedgerAccount(args.recipient, args.toSubaccount));
-      // a timestamp indicating when the transaction was created by the caller; if it is not specified by the caller then this is set to the current ICP time
-      created_at_time = null;
+  /**
+  * Get latest log items. Log output is capped at 100 items.
+  */
+  public query func getLogs() : async [Text] {
+    Buffer.toArray(logData);
+  };
+
+  /**
+    * Log a message. Log output is capped at 100 items.
+    */
+  private func log(text : Text) {
+    Debug.print(text);
+    logData.reserve(logData.size() + 1);
+    logData.insert(0, text);
+    // Cap the log at 100 items
+    if (logData.size() == 100) {
+      let _x = logData.removeLast();
+    };
+    return;
+  };
+
+  /**
+    * Generate a Trie key based on a merchant's principal ID
+    */
+  private func merchantKey(x : Text) : Trie.Key<Text> {
+    return { hash = Text.hash(x); key = x };
+  };
+
+  /**
+    * Check for new transactions and notify the merchant if a new transaction is found.
+    * This function is called by the global timer.
+    */
+  system func timer(setGlobalTimer : Nat64 -> ()) : async () {
+    let next = Nat64.fromIntWrap(Time.now()) + 20_000_000_000; // 20 seconds
+    setGlobalTimer(next);
+    await checkTx();
+  };
+
+  /**
+    * Check if a new transaction is found in the ledger.
+    */
+  private func checkTx() : async () {
+    var start : Nat = _startBlock;
+    if (latestTransactionIndex > 0) {
+      start := latestTransactionIndex + 1;
     };
 
-    try {
-      // review .dfx/local/canisters/icp_ledger_canister/service.did.d.ts for further types explanation
-      // TODO: send Plug needed input for QR to POS
+    var response = await CkBtcLedger.get_transactions({
+      start = start;
+      length = 1;
+    });
 
-      // get latest block transaction
-      let latestBlocks = await IcpLedger.query_blocks({ start = 0; length = 1 });
-      if (Array.size(latestBlocks.blocks) == 0) {
-        return #err("No blocks found");
-      };
+    if (Array.size(response.transactions) > 0) {
+      latestTransactionIndex := start;
 
-      let latestBlock = latestBlocks.blocks[0];
-      let transaction = latestBlock.transaction;
-
-      /// Check transaction in block and review that amount is equal to args.amount
-      switch (transaction.operation) {
-        case (?operation) {
-          if (operation.amount.e8s == args.amount.e8s) {
-            // TODO: send HTTP POST request to POS to continue process
-            return #ok(transaction);
-          } else {
-            return #err("Amount mismatch in transaction");
+      if (response.transactions[0].kind == "transfer") {
+        let t = response.transactions[0];
+        switch (t.transfer) {
+          case (?transfer) {
+            let to = transfer.to.owner;
+            let amount = transfer.amount;
+            // TODO: Check that the transaction is for the required amount ( idea: pass the amount to
+            // the context and each machine or merchant can have only one concurrent tx, it could help
+            // merchants to do onchain analysis)
+            switch (Trie.get(merchantStore, merchantKey(Principal.toText(to)), Text.equal)) {
+              case (?merchant) {
+                log("New transaction for an amount of " # Nat.toText(amount) # "CkBtc");
+              };
+              case null {
+                // No action required if merchant not found
+              };
+            };
+          };
+          case null {
+            // No action required if transfer is null
           };
         };
-        case null {
-          return #err("No operation found in transaction");
-        };
       };
-      // TODO: repeat process, keep checking (Timer cycle, etc.)
-      return #ok(transaction);
-
-    } catch (error : Error) {
-      // catch any errors that might occur during the transfer
-      return #err("Reject message: " # Error.message(error));
     };
+  };
+
+  system func postupgrade() {
+    // Make sure we start to montitor transactions from the block set on deployment
+    latestTransactionIndex := _startBlock;
   };
 };

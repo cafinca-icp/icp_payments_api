@@ -8,10 +8,14 @@ import Text "mo:base/Text";
 import Time "mo:base/Time";
 import Trie "mo:base/Trie";
 import Buffer "mo:base/Buffer";
+import Blob "mo:base/Blob";
+import Cycles "mo:base/ExperimentalCycles";
 
 // Importing local modules
 import MainTypes "main.types";
 import CkBtcLedger "canister:icrc1_ledger";
+
+import Types "Types";
 
 /**
 *  This actor is responsible for:
@@ -145,7 +149,64 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
             switch (Trie.get(merchantStore, merchantKey(Principal.toText(to)), Text.equal)) {
               case (?merchant) {
                 log("New transaction for an amount of " # Nat.toText(amount) # "CkBtc");
+
+                // TODO: move post-message logic after successful transaction
+                //1. DECLARE IC MANAGEMENT CANISTER
+                //We need this so we can use it to make the HTTP request
+                let ic : Types.IC = actor ("aaaaa-aa");
+
+                //2. SETUP ARGUMENTS FOR HTTP GET request
+
+                // 2.1 Setup the URL and its query parameters
+                //This URL is used because it allows us to inspect the HTTP request sent from the canister
+                let host : Text = "127.0.0.1";
+                let url = "https://127.0.0.1:5001/api/data"; //HTTP that accepts IPV6
+
+                // 2.2 prepare headers for the system http_request call
+
+                //idempotency keys should be unique so we create a function that generates them.
+                let idempotency_key : Text = generateUUID();
+                let request_headers = [
+                  { name = "Host"; value = host # ":443" },
+                  { name = "User-Agent"; value = "http_post_sample" },
+                  { name = "Content-Type"; value = "application/json" },
+                  { name = "Idempotency-Key"; value = idempotency_key },
+                ];
+
+                // The request body is an array of [Nat8] (see Types.mo) so we do the following:
+                // 1. Write a JSON string
+                // 2. Convert ?Text optional into a Blob, which is an intermediate reprepresentation before we cast it as an array of [Nat8]
+                // 3. Convert the Blob into an array [Nat8]
+                let request_body_json : Text = "{ \"name\" : \"Grogu\", \"force_sensitive\" : \"true\" }";
+                let request_body_as_Blob : Blob = Text.encodeUtf8(request_body_json);
+                let request_body_as_nat8 : [Nat8] = Blob.toArray(request_body_as_Blob); // e.g [34, 34,12, 0]
+
+                // 2.3 The HTTP request
+                let http_request : Types.HttpRequestArgs = {
+                  url = url;
+                  max_response_bytes = null; //optional for request
+                  headers = request_headers;
+                  //note: type of `body` is ?[Nat8] so we pass it here as "?request_body_as_nat8" instead of "request_body_as_nat8"
+                  body = ?request_body_as_nat8;
+                  method = #post;
+                  // transform = ?transform_context;
+                };
+
+                //3. ADD CYCLES TO PAY FOR HTTP REQUEST
+
+                //IC management canister will make the HTTP request so it needs cycles
+                //See: https://internetcomputer.org/docs/current/motoko/main/cycles
+
+                //The way Cycles.add() works is that it adds those cycles to the next asynchronous call
+                //See: https://internetcomputer.org/docs/current/references/ic-interface-spec/#ic-http_request
+                Cycles.add(230_850_258_000);
+
+                //4. MAKE HTTPS REQUEST AND WAIT FOR RESPONSE
+                //Since the cycles were added above, we can just call the IC management canister with HTTPS outcalls below
+                let http_response : Types.HttpResponsePayload = await ic.http_request(http_request);
+                Debug.print("HTTP request sent!");
               };
+
               case null {
                 // No action required if merchant not found
               };
@@ -157,6 +218,14 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
         };
       };
     };
+  };
+
+  // PRIVATE HELPER FUNCTION
+  //Helper method that generates a Universally Unique Identifier
+  //this method is used for the Idempotency Key used in the request headers of the POST request.
+  //For the purposes of this exercise, it returns a constant, but in practice it should return unique identifiers
+  func generateUUID() : Text {
+    "UUID-123456789";
   };
 
   system func postupgrade() {

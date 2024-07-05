@@ -55,7 +55,7 @@ module Types {
   };
 
   public type TransformContext = {
-    function : shared query TransformArgs -> async HttpResponsePayload;
+    function : TransformArgs -> async HttpResponsePayload;
     context : Blob;
   };
 

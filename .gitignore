@@ -2,6 +2,9 @@
 # .vscode/
 .idea/
 .mops/
+.venv/
+
+__pycache__/
 **/*~
 
 # Mac OSX temporary files

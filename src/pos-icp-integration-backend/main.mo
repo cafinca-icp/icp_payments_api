@@ -1,6 +1,5 @@
 // base modules
 import Array "mo:base/Array";
-import Buffer "mo:base/Buffer";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Principal "mo:base/Principal";
@@ -8,23 +7,37 @@ import Text "mo:base/Text";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
 import Blob "mo:base/Blob";
+import Type "mo:candid/Type";
 
 // local modules
 import CkBtcLedger "canister:icrc1_ledger";
+import Types "Types";
 
 shared (actorContext) actor class Main(_startBlock : Nat) {
-  type HttpResponse = {
-    status_code : Nat16;
-    headers : [Text];
-    body : Blob;
-  };
-  // TODO: review that we must be compliant ICRC2
-  // - currently we use ICRC1, review if we can move to ICRC2.
+  public shared composite query func http_request(req : Types.HttpRequest) : async Types.HttpResponse {
+    Debug.print(req.method # " " # req.url);
+    // TODO: print headers
 
-  /*
-    * Check if a new transaction is found in the ledger.
-  */
-  public func checkTx(recipient : Text, amount : Nat) : async HttpResponse {
+    // TODO: print data json object
+
+    // get the request body and fill recipient and amount vars
+    let check_transaction_input : ?Types.CheckTransactionInput = from_candid (req.body);
+    var recipient = "";
+    var amount = 0;
+    switch (check_transaction_input) {
+      case (?check_transaction_input) {
+        recipient := check_transaction_input.recipient;
+        amount := check_transaction_input.amount;
+      };
+      case null {
+        return {
+          status_code = 400;
+          headers = [("content-type", "text/plain")];
+          body = Text.encodeUtf8("Invalid request body");
+        };
+      };
+    };
+
     var start : Nat = 0;
     var timeout : Nat64 = 240_000_000_000; // 4 minutes in nanoseconds
 
@@ -80,11 +93,23 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
       if (Principal.toText(to) == recipient and txAmount == amount and Nat64.fromIntWrap(Time.now()) - timestamp < timeout) {
         Debug.print("New transaction for an amount of " # Nat.toText(amount) # " ckBTC");
 
-        return { status_code = 200; headers = []; body = Text.encodeUtf8("Transaction found") };
+        return {
+          status_code = 200;
+          headers = [("content-type", "text/plain")];
+          body = Text.encodeUtf8("Transaction found");
+        };
       };
-      return { status_code = 404; headers = []; body = Text.encodeUtf8("Transaction not found") };
+      return {
+        status_code = 404;
+        headers = [("content-type", "text/plain")];
+        body = Text.encodeUtf8("Transaction not found");
+      };
     } else {
-      return { status_code = 404; headers = []; body = Text.encodeUtf8("Transactions not found") };
+      return {
+        status_code = 404;
+        headers = [("content-type", "text/plain")];
+        body = Text.encodeUtf8("Transactions not found");
+      };
     };
   };
 };

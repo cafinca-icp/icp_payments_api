@@ -1,3 +1,4 @@
+import Principal "mo:base/Principal";
 module Types {
   public type HeaderField = (Text, Text);
 
@@ -15,7 +16,7 @@ module Types {
   };
 
   public type CheckTransactionInput = {
-    recipient : Text;
+    recipient : Principal;
     amount : Nat;
   };
 };

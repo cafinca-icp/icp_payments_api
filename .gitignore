@@ -29,3 +29,6 @@ dist/
 .env
 
 .mops
+
+# private keys and certificates
+*.pem

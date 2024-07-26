@@ -1,4 +1,6 @@
 import Principal "mo:base/Principal";
+import Float "mo:base/Float";
+
 module Types {
   public type HeaderField = (Text, Text);
 
@@ -17,6 +19,6 @@ module Types {
 
   public type CheckTransactionInput = {
     recipient : Principal;
-    amount : Nat;
+    amount : Float;
   };
 };

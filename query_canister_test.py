@@ -2,20 +2,20 @@ import pprint
 import requests
 from ic.candid import encode, Types
 import cbor2
-from ic import Identity, Principal
+from ic import Identity, Principal, decode
 import time
-import base64
+from pprint import pprint
 
 
 # Replace with your canister ID and method name
-canister_id = "u4ezz-mqaaa-aaaan-qmrva-cai"
+canister_id = "jivd6-uaaaa-aaaar-qahbq-cai"
 method_name = "http_request"
 
 url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/query"
 
 # Define the recipient and amount arguments
-recipient = Principal.from_str("ucuh4-xvinn-x5ac5-snla4-t65g2-5bpiw-awzag-znjhh-fzdek-cut2o-aae").bytes
-amount = 11
+recipient = Principal.from_str("f6fvu-25ywu-a2oez-2oc7d-3thap-r5d6f-uez55-ltn4b-tw4yn-fqu66-aae").bytes
+amount = 0.0000015
 
 # Prepare the query arguments as a dictionary and encode using Candid
 args = {
@@ -26,7 +26,7 @@ args = {
 # Define the structure of the arguments
 args_types = Types.Record({
     "recipient": Types.Principal,
-    "amount": Types.Nat
+    "amount": Types.Float64,
 })
 
 # Encode the arguments using Candid
@@ -101,5 +101,18 @@ if response_data.get("status") == "rejected":
   print(f"signatures    : \n{pprint.pformat(response_data['signatures'][0])}")
 
 
-if response_data.get("reply"):
-  print("reply > arg\n", response_data["reply"]["arg"])
+if response_data.get("status") == "replied":
+  print("status\n", response_data["status"], "\n")
+  print("reply\n", response_data["reply"], "\n")
+  print("signatures\n", response_data["signatures"], "\n")
+
+  print("arg")
+  arg = decode(response_data["reply"]["arg"])[0]
+
+  # rename the keys
+  arg["value"]["status"] = arg["value"].pop("_3475804314")
+  arg["value"]["headers"] = arg["value"].pop("_1661489734")
+  arg["value"]["body"] = arg["value"].pop("_1092319906")
+
+  arg["value"]["body"] = "".join(chr(i) for i in arg["value"]["body"])
+  pprint(arg)

@@ -6,6 +6,7 @@ import Principal "mo:base/Principal";
 import Text "mo:base/Text";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
+import Float "mo:base/Float";
 
 //  external modules
 import HttpParser "mo:http-parser";
@@ -17,7 +18,7 @@ import Types "Types";
 shared (actorContext) actor class Main(_startBlock : Nat) {
   public shared composite query func http_request(rawReq : Types.HttpRequest) : async HttpParser.HttpResponse {
     var recipient = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai"); // dummy principal
-    var amount = 0;
+    var amount = 0.0;
 
     let req = HttpParser.parse(rawReq);
     let { url } = req;
@@ -34,7 +35,7 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
             amount := input.amount;
 
             Debug.print("recipient: " # Principal.toText(recipient));
-            Debug.print("amount: " # Nat.toText(amount));
+            Debug.print("amount: " # Float.toText(amount));
 
             var start : Nat = 0;
             var timeout : Nat64 = 240_000_000_000; // 4 minutes in nanoseconds
@@ -45,14 +46,14 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
               let t = response.transactions[response.transactions.size() - 1];
 
               var to = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai"); // dummy principal
-              var txAmount = 0;
+              var txAmount = 0.0;
               var timestamp = t.timestamp;
               switch (t.kind) {
                 case "burn" {
                   switch (t.burn) {
                     case (?burn) {
                       to := recipient;
-                      txAmount := burn.amount;
+                      txAmount := Float.fromInt(burn.amount);
                     };
                     case null {};
                   };
@@ -61,7 +62,7 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
                   switch (t.mint) {
                     case (?mint) {
                       to := mint.to.owner;
-                      txAmount := mint.amount;
+                      txAmount := Float.fromInt(mint.amount);
                     };
                     case null {};
                   };
@@ -70,7 +71,7 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
                   switch (t.transfer) {
                     case (?transfer) {
                       to := transfer.to.owner;
-                      txAmount := transfer.amount;
+                      txAmount := Float.fromInt(transfer.amount);
                     };
                     case null {};
                   };
@@ -78,8 +79,11 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
                 case _ {};
               };
 
+              Debug.print("amount: " # Float.toText(amount));
+              Debug.print("txAmount: " # Float.toText(txAmount));
+
               if (to == recipient and txAmount == amount and Nat64.fromIntWrap(Time.now()) - timestamp < timeout) {
-                Debug.print("New transaction for an amount of " # Nat.toText(amount) # " ckBTC");
+                Debug.print("New transaction for an amount of " # Float.toText(amount) # " ckBTC");
 
                 return {
                   status_code = 200;

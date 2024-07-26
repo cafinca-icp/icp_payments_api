@@ -1,8 +1,10 @@
+import pprint
 import requests
 from ic.candid import encode, Types
 import cbor2
 from ic import Identity, Principal
 import time
+import base64
 
 
 # Replace with your canister ID and method name
@@ -12,7 +14,7 @@ method_name = "http_request"
 url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/query"
 
 # Define the recipient and amount arguments
-recipient = "ucuh4-xvinn-x5ac5-snla4-t65g2-5bpiw-awzag-znjhh-fzdek-cut2o-aae"
+recipient = Principal.from_str("ucuh4-xvinn-x5ac5-snla4-t65g2-5bpiw-awzag-znjhh-fzdek-cut2o-aae").bytes
 amount = 11
 
 # Prepare the query arguments as a dictionary and encode using Candid
@@ -23,7 +25,7 @@ args = {
 
 # Define the structure of the arguments
 args_types = Types.Record({
-    "recipient": Types.Text,
+    "recipient": Types.Principal,
     "amount": Types.Nat
 })
 
@@ -57,17 +59,20 @@ encoded_http_request = encode([{
   "value": http_values
 }])
 
-#print("encoded http req", encoded_http_request)
+# print("encoded http req", encoded_http_request)
 
 # anon sender
-identity = Identity(anonymous=True)
-
+identity = Identity(
+  type="ed25519",  # ed25519 | secp256k1
+  anonymous=True,
+)
 
 # Prepare the query data
 query_data = {
   "content":{
     "request_type": "query",
     "sender": identity.sender().bytes,
+    "sender_sig": identity.sign(encoded_http_request),
     "canister_id": Principal.from_str(canister_id).bytes,
     "ingress_expiry": int((time.time() + 60) * 1_000_000_000),
     "method_name": method_name,
@@ -78,22 +83,23 @@ query_data = {
 # Encode the entire query data to CBOR format
 cbor_encoded_data = cbor2.dumps(query_data)
 
-# Define the URL for the query call
-url = f"https://ic0.app/api/v2/canister/{canister_id}/query"
-
 # Send the query request
 response = requests.post(url, headers= headers, data=cbor_encoded_data)
-print("res content", response.content)
-print("=========")
-print("res",response)
+print("res content\n", response.content, "\n")
 
 # Decode the response from CBOR format
 response_data = cbor2.loads(response.content)
 
 # Print the response
-print("=========")
+print("res data\n", response_data, "\n")
 
-print("res data", response_data)
-print("=========")
+if response_data.get("status") == "rejected":
+  print(f"status        : {response_data['status']}")
+  print(f"error_code    : {response_data['error_code']}")
+  print(f"reject_code   : {response_data['reject_code']}")
+  print(f"reject_message: {response_data['reject_message']}")
+  print(f"signatures    : \n{pprint.pformat(response_data['signatures'][0])}")
 
-print(cbor2.loads(response_data["reply"]["arg"]))
+
+if response_data.get("reply"):
+  print("reply > arg\n", response_data["reply"]["arg"])

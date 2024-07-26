@@ -110,7 +110,7 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
             return {
               status_code = 400;
               headers = [("content-type", "text/plain")];
-              body = Text.encodeUtf8("Invalid request body");
+              body = Text.encodeUtf8("Invalid request body [TEST]");
             };
           };
         };

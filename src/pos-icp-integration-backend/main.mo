@@ -16,7 +16,7 @@ import CkBtcIndex "canister:icrc1_index";
 import Types "Types";
 
 shared (actorContext) actor class Main(_startBlock : Nat) {
-  public shared composite query func http_request(rawReq : Types.HttpRequest) : async HttpParser.HttpResponse {
+  public shared func http_request(rawReq : Types.HttpRequest) : async HttpParser.HttpResponse {
     var recipient = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai"); // dummy principal
     var amount = 0.0;
 
@@ -37,16 +37,17 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
             Debug.print("recipient: " # Principal.toText(recipient));
             Debug.print("amount: " # Float.toText(amount));
 
-            var start : Nat = 0;
             var timeout : Nat64 = 240_000_000_000; // 4 minutes in nanoseconds
 
             // TODO:: loop over the transactions until we find the transaction for the given recipient and amount
             var response = await CkBtcIndex.get_account_transactions({
-              account = recipient;
-              start = start;
-              limit = 10;
+              account = { owner = recipient; subaccount = null };
+              start = ?0;
+              max_results = 10;
             });
-            if (Array.size(response.transactions) > 0) {
+            #Ok { transactions; oldest_tx_id } := response;
+
+            if (Array.size(transactions) > 0) {
               let t = response.transactions[response.transactions.size() - 1];
 
               var to = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai"); // dummy principal

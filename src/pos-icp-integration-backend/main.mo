@@ -12,7 +12,7 @@ import Float "mo:base/Float";
 import HttpParser "mo:http-parser";
 
 // local modules
-import CkBtcLedger "canister:icrc1_ledger";
+import CkBtcIndex "canister:icrc1_index";
 import Types "Types";
 
 shared (actorContext) actor class Main(_startBlock : Nat) {
@@ -40,8 +40,12 @@ shared (actorContext) actor class Main(_startBlock : Nat) {
             var start : Nat = 0;
             var timeout : Nat64 = 240_000_000_000; // 4 minutes in nanoseconds
 
-            var response = await CkBtcLedger.get_transactions({ start = start; length = 10 });
-            Debug.print("n_transactions: " # Nat.toText(Array.size(response.transactions)));
+            // TODO:: loop over the transactions until we find the transaction for the given recipient and amount
+            var response = await CkBtcIndex.get_account_transactions({
+              account = recipient;
+              start = start;
+              limit = 10;
+            });
             if (Array.size(response.transactions) > 0) {
               let t = response.transactions[response.transactions.size() - 1];
 

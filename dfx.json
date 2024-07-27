@@ -3,15 +3,15 @@
     "pos-icp-integration-backend": {
       "main": "src/pos-icp-integration-backend/main.mo",
       "type": "motoko",
-      "dependencies": ["icrc1_ledger"]
+      "dependencies": ["icrc1_index"]
     },
-    "icrc1_ledger": {
+    "icrc1_index": {
       "type": "custom",
-      "candid": "icrc1_ledger.did",
-      "wasm": "https://download.dfinity.systems/ic/95787355499f3be929f2ab302ed44cdad7c64061/canisters/ic-icrc1-ledger.wasm.gz",
+      "candid": "icrc1_index.did",
+      "wasm": "https://download.dfinity.systems/ic/95787355499f3be929f2ab302ed44cdad7c64061/canisters/ic-icrc1-index.wasm.gz",
       "remote": {
         "id": {
-          "ic": "mxzaz-hqaaa-aaaar-qaada-cai"
+          "ic": "n5wcd-faaaa-aaaar-qaaea-cai"
         }
       }
     }

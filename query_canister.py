@@ -9,9 +9,9 @@ from pprint import pprint
 
 # Replace with your canister ID and method name
 canister_id = "jivd6-uaaaa-aaaar-qahbq-cai"
-method_name = "http_request"
+method_name = "check_transaction"
 
-url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/query"
+url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
 
 # Define the recipient and amount arguments
 recipient = Principal.from_str("f6fvu-25ywu-a2oez-2oc7d-3thap-r5d6f-uez55-ltn4b-tw4yn-fqu66-aae").bytes
@@ -70,7 +70,7 @@ identity = Identity(
 # Prepare the query data
 query_data = {
   "content":{
-    "request_type": "query",
+    "request_type": "call",
     "sender": identity.sender().bytes,
     "sender_sig": identity.sign(encoded_http_request),
     "canister_id": Principal.from_str(canister_id).bytes,
@@ -79,14 +79,18 @@ query_data = {
     "arg": encoded_http_request
   }
 }
-# print("canid", cbor2.dumps(Principal.from_str(canister_id).bytes))
+# print("candid", cbor2.dumps(Principal.from_str(canister_id).bytes))
 # Encode the entire query data to CBOR format
 cbor_encoded_data = cbor2.dumps(query_data)
+
+print("encoded data", cbor_encoded_data)
+print("headers", headers)
+print("url", url)
 
 # Send the query request
 response = requests.post(url, headers= headers, data=cbor_encoded_data)
 print("res content\n", response.content, "\n")
-
+print("res", response)
 # Decode the response from CBOR format
 response_data = cbor2.loads(response.content)
 

@@ -7,8 +7,8 @@
     },
     "icrc1_index": {
       "type": "custom",
-      "candid": "https://raw.githubusercontent.com/dfinity/ic/0e1e109fcb4b808e697429e89182a94028f1895e/rs/rosetta-api/icrc1/index-ng/index-ng.did",
-      "wasm": "https://download.dfinity.systems/ic/0e1e109fcb4b808e697429e89182a94028f1895e/canisters/ic-icrc1-index-ng.wasm.gz",
+      "candid": "https://raw.githubusercontent.com/dfinity/ic/master/rs/rosetta-api/icrc1/index-ng/index-ng.did",
+      "wasm": "https://download.dfinity.systems/ic/master/canisters/ic-icrc1-index-ng.wasm.gz",
       "remote": {
         "id": {
           "ic": "n5wcd-faaaa-aaaar-qaaea-cai"

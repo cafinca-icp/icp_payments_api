@@ -1,11 +1,6 @@
 import pprint
-
-from flask import g
-import grequests
-from ic.candid import encode, Types
-import cbor2
-from ic import Identity, Principal, decode
-import time
+from ic.candid import Types
+from ic import Identity, Principal, Client, Agent, encode
 from pprint import pprint
 
 
@@ -46,9 +41,6 @@ http_values = {
       ],
     "body": encoded_args
 }
-
-#print("http req", http_values)
-
 http_types = Types.Record({
   "url": Types.Text,
   "method": Types.Text,
@@ -62,120 +54,21 @@ encoded_http_request = encode([{
   "value": http_values
 }])
 
-# print("encoded http req", encoded_http_request)
+iden = Identity(anonymous=True)
+client = Client()
+agent = Agent(iden, client)
 
-# anon sender
-identity = Identity(
-  type="ed25519",  # ed25519 | secp256k1
-  anonymous=True,
+res = agent.update_raw(
+    canister_id=canister_id,
+    method_name=method_name,
+    arg=encoded_http_request,
 )
+value = res[0]["value"]
+print("> res:\n")
+print(res, "\n")
 
-# Prepare the query data
-query_data = {
-  "content":{
-    "request_type": "call",
-    "sender": identity.sender().bytes,
-    "sender_sig": identity.sign(encoded_http_request),
-    "canister_id": Principal.from_str(canister_id).bytes,
-    "ingress_expiry": int((time.time() + 60) * 1_000_000_000),
-    "method_name": method_name,
-    "arg": encoded_http_request
-  }
-}
-# print("candid", cbor2.dumps(Principal.from_str(canister_id).bytes))
-# Encode the entire query data to CBOR format
-cbor_encoded_data = cbor2.dumps(query_data)
-
-print("encoded data", cbor_encoded_data)
-print("headers", headers)
-print("url", url)
-
-print("cbor encoded input", cbor_encoded_data)
-# Send the query request
-req = grequests.post(url, headers=headers, data=cbor_encoded_data)
-grequests.
-print("res", response)
-print("res content\n", response.content, "\n")
-
-if response.status_code == 202:
-    # Poll the read_state endpoint to get the result
-    read_state_url = f"https://ic0.app/api/v2/canister/{canister_id}/read_state"
-    res = grequests.post(
-        read_state_url,
-        headers=headers,
-        data=cbor2.dumps({
-          "content": {
-            "request_type": "read_state",
-            "sender": identity.sender().bytes,
-            "paths": [["canister", canister_id, "request_status", response.json()["request_id"]]],
-          }
-        })
-      )
-
-    print("\nres.status_code", res.status_code)
-    print("res.content", res.content)
-
-    poll_interval = 2  # seconds
-    max_retries = 30   # max attempts before giving up
-
-    # Get the request_id from the response
-    request_id = response_data["request_id"]
-
-    # Prepare the read_state payload
-    read_state_data = {
-        "content": {
-            "request_type": "read_state",
-            "sender": identity.sender().bytes,
-            "paths": [["canister", canister_id, "request_status", request_id]],
-            "ingress_expiry": int((time.time() + 60) * 1_000_000_000),
-        }
-    }
-    cbor_encoded_read_state_data = cbor2.dumps(read_state_data)
-
-    for _ in range(max_retries):
-        read_state_response = requests.post(read_state_url, headers=headers, data=cbor_encoded_read_state_data)
-        read_state_data = cbor2.loads(read_state_response.content)
-        status = read_state_data["status"]
-
-        if status == "completed":
-            # Decode the reply
-            reply_data = decode(read_state_data["reply"]["arg"])[0]
-            pprint(reply_data)
-            break
-        elif status == "processing":
-            print("Request is still processing...")
-            time.sleep(poll_interval)
-        else:
-            print(f"Unexpected status: {status}")
-            break
-    else:
-        print("Request timed out.")
-
-
-
-# Print the response
-print("res data\n", response_data, "\n")
-
-if response_data.get("status") == "rejected":
-  print(f"status        : {response_data['status']}")
-  print(f"error_code    : {response_data['error_code']}")
-  print(f"reject_code   : {response_data['reject_code']}")
-  print(f"reject_message: {response_data['reject_message']}")
-  print(f"signatures    : \n{pprint.pformat(response_data['signatures'][0])}")
-
-
-if response_data.get("status") == "replied":
-  print("status\n", response_data["status"], "\n")
-  print("reply\n", response_data["reply"], "\n")
-  print("signatures\n", response_data["signatures"], "\n")
-
-  print("arg")
-  arg = decode(response_data["reply"]["arg"])[0]
-
-  # rename the keys
-  arg["value"]["status"] = arg["value"].pop("_3475804314")
-  arg["value"]["headers"] = arg["value"].pop("_1661489734")
-  arg["value"]["body"] = arg["value"].pop("_1092319906")
-
-  arg["value"]["body"] = "".join(chr(i) for i in arg["value"]["body"])
-  pprint(arg)
+value["status"] = value.pop("_3475804314")
+value["headers"] = value.pop("_1661489734")
+value["body"] = "".join(chr(i) for i in value.pop("_1092319906"))
+print("> parsed value:\n")
+pprint(value)

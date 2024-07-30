@@ -70,7 +70,7 @@ actor Main {
                       switch (tx.transfer) {
                         case (?transfer) {
                           let txRecipient = transfer.to.owner;
-                          let txAmount = Float.fromInt(transfer.amount);
+                          let txAmount = Float.fromInt(transfer.amount) / 100_000_000;
                           let txTimestamp = tx.timestamp;
                           let txAge = Nat64.fromIntWrap(Time.now()) - txTimestamp;
 
@@ -88,7 +88,7 @@ actor Main {
                             return {
                               status_code = 200;
                               headers = [("content-type", "text/plain")];
-                              body = Text.encodeUtf8("Transaction amount incorrect or transaction too old");
+                              body = Text.encodeUtf8("Transaction amount incorrect or transaction too old: " # Float.toText(txAmount) # " " # Float.toText(amountToCheck) #);
                             };
                           };
                         };

@@ -13,7 +13,7 @@ url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
 
 # Define the recipient and amount arguments
 recipient = Principal.from_str("f6fvu-25ywu-a2oez-2oc7d-3thap-r5d6f-uez55-ltn4b-tw4yn-fqu66-aae").bytes
-amount = 0.0000015
+amount = 0.00001
 
 # Prepare the query arguments as a dictionary and encode using Candid
 args = {

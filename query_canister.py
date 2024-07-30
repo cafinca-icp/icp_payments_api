@@ -1,5 +1,7 @@
 import pprint
-import requests
+
+from flask import g
+import grequests
 from ic.candid import encode, Types
 import cbor2
 from ic import Identity, Principal, decode
@@ -8,12 +10,11 @@ from pprint import pprint
 
 
 # Replace with your canister ID and method name
-canister_id = "bd3sg-teaaa-aaaaa-qaaba-cai"# "jivd6-uaaaa-aaaar-qahbq-cai"
+canister_id = "jivd6-uaaaa-aaaar-qahbq-cai" # jivd6-uaaaa-aaaar-qahbq-cai | bd3sg-teaaa-aaaaa-qaaba-cai
 method_name = "check_transaction"
 
-# url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
-
-url = f"http://127.0.0.1:4943/?canisterId={canister_id}"
+url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
+# url = f"http://127.0.0.1:4943/?canisterId={canister_id}"
 
 # Define the recipient and amount arguments
 recipient = Principal.from_str("f6fvu-25ywu-a2oez-2oc7d-3thap-r5d6f-uez55-ltn4b-tw4yn-fqu66-aae").bytes
@@ -89,22 +90,31 @@ print("encoded data", cbor_encoded_data)
 print("headers", headers)
 print("url", url)
 
-
-
 print("cbor encoded input", cbor_encoded_data)
 # Send the query request
-response = requests.post(url, headers= headers, data=cbor_encoded_data)
-print("res content\n", response.content, "\n")
+req = grequests.post(url, headers=headers, data=cbor_encoded_data)
+grequests.
 print("res", response)
-# Decode the response from CBOR format
-response_data = cbor2.loads(response.content)
-# Print the response
-print("res data\n", response_data, "\n")
+print("res content\n", response.content, "\n")
 
-# Handle the 202 status code
 if response.status_code == 202:
     # Poll the read_state endpoint to get the result
     read_state_url = f"https://ic0.app/api/v2/canister/{canister_id}/read_state"
+    res = grequests.post(
+        read_state_url,
+        headers=headers,
+        data=cbor2.dumps({
+          "content": {
+            "request_type": "read_state",
+            "sender": identity.sender().bytes,
+            "paths": [["canister", canister_id, "request_status", response.json()["request_id"]]],
+          }
+        })
+      )
+
+    print("\nres.status_code", res.status_code)
+    print("res.content", res.content)
+
     poll_interval = 2  # seconds
     max_retries = 30   # max attempts before giving up
 

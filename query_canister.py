@@ -8,10 +8,12 @@ from pprint import pprint
 
 
 # Replace with your canister ID and method name
-canister_id = "jivd6-uaaaa-aaaar-qahbq-cai"
+canister_id = "bd3sg-teaaa-aaaaa-qaaba-cai"# "jivd6-uaaaa-aaaar-qahbq-cai"
 method_name = "check_transaction"
 
-url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
+# url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
+
+url = f"http://127.0.0.1:4943/?canisterId={canister_id}"
 
 # Define the recipient and amount arguments
 recipient = Principal.from_str("f6fvu-25ywu-a2oez-2oc7d-3thap-r5d6f-uez55-ltn4b-tw4yn-fqu66-aae").bytes
@@ -87,12 +89,59 @@ print("encoded data", cbor_encoded_data)
 print("headers", headers)
 print("url", url)
 
+
+
+print("cbor encoded input", cbor_encoded_data)
 # Send the query request
 response = requests.post(url, headers= headers, data=cbor_encoded_data)
 print("res content\n", response.content, "\n")
 print("res", response)
 # Decode the response from CBOR format
 response_data = cbor2.loads(response.content)
+# Print the response
+print("res data\n", response_data, "\n")
+
+# Handle the 202 status code
+if response.status_code == 202:
+    # Poll the read_state endpoint to get the result
+    read_state_url = f"https://ic0.app/api/v2/canister/{canister_id}/read_state"
+    poll_interval = 2  # seconds
+    max_retries = 30   # max attempts before giving up
+
+    # Get the request_id from the response
+    request_id = response_data["request_id"]
+
+    # Prepare the read_state payload
+    read_state_data = {
+        "content": {
+            "request_type": "read_state",
+            "sender": identity.sender().bytes,
+            "paths": [["canister", canister_id, "request_status", request_id]],
+            "ingress_expiry": int((time.time() + 60) * 1_000_000_000),
+        }
+    }
+    cbor_encoded_read_state_data = cbor2.dumps(read_state_data)
+
+    for _ in range(max_retries):
+        read_state_response = requests.post(read_state_url, headers=headers, data=cbor_encoded_read_state_data)
+        read_state_data = cbor2.loads(read_state_response.content)
+        status = read_state_data["status"]
+
+        if status == "completed":
+            # Decode the reply
+            reply_data = decode(read_state_data["reply"]["arg"])[0]
+            pprint(reply_data)
+            break
+        elif status == "processing":
+            print("Request is still processing...")
+            time.sleep(poll_interval)
+        else:
+            print(f"Unexpected status: {status}")
+            break
+    else:
+        print("Request timed out.")
+
+
 
 # Print the response
 print("res data\n", response_data, "\n")

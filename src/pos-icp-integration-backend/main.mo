@@ -86,9 +86,9 @@ actor Main {
                           } else {
                             // Return a response if the transaction amount is incorrect or too old
                             return {
-                              status_code = 200;
+                              status_code = 422;
                               headers = [("content-type", "text/plain")];
-                              body = Text.encodeUtf8("Transaction amount incorrect or transaction too old: " # Float.toText(txAmount) # " " # Float.toText(amountToCheck) #);
+                              body = Text.encodeUtf8("Transaction amount incorrect or transaction too old: " # Float.toText(txAmount) # " " # Float.toText(amountToCheck));
                             };
                           };
                         };
@@ -98,7 +98,7 @@ actor Main {
                     case _ {
                       // Handle invalid transaction type
                       return {
-                        status_code = 400;
+                        status_code = 422;
                         headers = [("content-type", "text/plain")];
                         body = Text.encodeUtf8("Invalid transaction type");
                       };
@@ -107,7 +107,7 @@ actor Main {
 
                   // Return a response if the transaction is not valid
                   return {
-                    status_code = 404;
+                    status_code = 422;
                     headers = [("content-type", "text/plain")];
                     body = Text.encodeUtf8("Transaction is not valid");
                   };
@@ -128,13 +128,6 @@ actor Main {
                   body = Text.encodeUtf8("Internal server error: " # error.message);
                 };
               };
-            };
-
-            // Return a response indicating that the request body was parsed successfully
-            return {
-              status_code = 200;
-              headers = [("content-type", "text/plain")];
-              body = Text.encodeUtf8("Request body parsed");
             };
           };
           case null {

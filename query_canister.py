@@ -5,17 +5,16 @@ from pprint import pprint
 
 
 # Replace with your canister ID and method name
-canister_id = "jivd6-uaaaa-aaaar-qahbq-cai" # jivd6-uaaaa-aaaar-qahbq-cai | bd3sg-teaaa-aaaaa-qaaba-cai
+canister_id = "jivd6-uaaaa-aaaar-qahbq-cai"
 method_name = "check_transaction"
 
 url = f"https://nns.ic0.app/api/v2/canister/{canister_id}/call"
-# url = f"http://127.0.0.1:4943/?canisterId={canister_id}"
 
 # Define the recipient and amount arguments
 recipient = Principal.from_str("f6fvu-25ywu-a2oez-2oc7d-3thap-r5d6f-uez55-ltn4b-tw4yn-fqu66-aae").bytes
 amount = 0.00001
 
-# Prepare the query arguments as a dictionary and encode using Candid
+# Prepare the query arguments as a dictionary
 args = {
     "recipient": recipient,
     "amount": amount
@@ -30,6 +29,7 @@ args_types = Types.Record({
 # Encode the arguments using Candid
 encoded_args = encode([{"type": args_types, "value": args}])
 
+# Define headers for the HTTP request
 headers = {"Content-Type": "application/cbor"}
 
 # Prepare the HttpRequest structure
@@ -41,6 +41,8 @@ http_values = {
       ],
     "body": encoded_args
 }
+
+# Define the structure of the HttpRequest using Candid types
 http_types = Types.Record({
   "url": Types.Text,
   "method": Types.Text,
@@ -54,21 +56,24 @@ encoded_http_request = encode([{
   "value": http_values
 }])
 
+# Create an anonymous identity for the agent
 iden = Identity(anonymous=True)
 client = Client()
 agent = Agent(iden, client)
 
+# Send the update request to the canister
 res = agent.update_raw(
     canister_id=canister_id,
     method_name=method_name,
     arg=encoded_http_request,
 )
-value = res[0]["value"]
-print("> res:\n")
-print(res, "\n")
 
+# Parse the response to a more readable format
+value = res[0]["value"]
 value["status"] = value.pop("_3475804314")
 value["headers"] = value.pop("_1661489734")
 value["body"] = "".join(chr(i) for i in value.pop("_1092319906"))
 print("> parsed value:\n")
+
+# Print the parsed response
 pprint(value)

@@ -132,3 +132,21 @@ The `--argument '(0)'` argument is used to initialize the canister with `startBl
 ```bash
 dfx deploy --network local pos-icp-integration-backend --argument '(0)'
 ```
+
+## Testing mainnet canister with Python
+
+```bash
+# create virtual environment
+python3.11 -m venv .venv
+
+# activate virtual environment
+source .venv/bin/activate
+
+# install dependencies
+pip install -r requirements.txt
+
+# run the test
+python query_canister.py
+```
+
+source code of canister and expected responses can be reviewed at `src/pos-icp-integration-backend/main.mo`.

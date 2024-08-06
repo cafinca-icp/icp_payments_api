@@ -1,125 +1,141 @@
-// base modules
+// Base modules
 import Array "mo:base/Array";
-import Debug "mo:base/Debug";
-import Nat "mo:base/Nat";
-import Principal "mo:base/Principal";
 import Text "mo:base/Text";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
 import Float "mo:base/Float";
 
-//  external modules
+//  External modules
 import HttpParser "mo:http-parser";
 
-// local modules
+// Local modules
 import CkBtcIndex "canister:icrc1_index";
 import Types "Types";
 
-shared (actorContext) actor class Main(_startBlock : Nat) {
-  public shared func http_request(rawReq : Types.HttpRequest) : async HttpParser.HttpResponse {
-    var recipient = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai"); // dummy principal
-    var amount = 0.0;
+// Define the main actor class for the canister
+actor Main {
 
+  /**
+   * Handles HTTP requests sent to the canister to verify transactions.
+   * Parses the request, retrieves the latest transaction for a recipient, and verifies
+   * whether it matches the expected amount and is within the timeout period.
+   *
+   * @param rawReq The raw HTTP request received by the canister.
+   * @return An HTTP response indicating the result of the transaction check.
+   */
+  public shared func check_transaction(rawReq : Types.HttpRequest) : async HttpParser.HttpResponse {
+
+    // Timeout period (4 minutes) in nanoseconds
+    var timeout : Nat64 = 240_000_000_000;
+
+    // Parse the incoming HTTP request
     let req = HttpParser.parse(rawReq);
-    let { url } = req;
-    let { path } = url;
 
-    // get the request body and fill recipient and amount vars
+    // Process the request body to retrieve transaction details
     switch (req.body) {
       case (?body) {
-
-        let check_transaction_input : ?Types.CheckTransactionInput = from_candid (body.original);
-        switch (check_transaction_input) {
+        // Convert the request body from Candid encoding
+        let parsedTransactionInput : ?Types.CheckTransactionInput = from_candid (body.original);
+        switch (parsedTransactionInput) {
           case (?input) {
-            recipient := input.recipient;
-            amount := input.amount;
+            // Extract recipient and amount from the parsed input
+            let recipientToCheck = input.recipient;
+            let amountToCheck = input.amount;
 
-            Debug.print("recipient: " # Principal.toText(recipient));
-            Debug.print("amount: " # Float.toText(amount));
+            // Get the latest block
+            let status = await CkBtcIndex.status();
 
-            var timeout : Nat64 = 240_000_000_000; // 4 minutes in nanoseconds
+            // Extract the number of blocks synced from the status
+            let numBlocksSynced = status.num_blocks_synced;
+            var startBlock : Nat = numBlocksSynced;
 
-            // TODO:: loop over the transactions until we find the transaction for the given recipient and amount
-            var response = await CkBtcIndex.get_account_transactions({
-              account = { owner = recipient; subaccount = null };
-              start = ?0;
-              max_results = 10;
+            // Fetch the latest transaction for the recipient from the ledger
+            var lastTx = await CkBtcIndex.get_account_transactions({
+              account = { owner = recipientToCheck; subaccount = null };
+              start = ?startBlock;
+              max_results = 1;
             });
-            #Ok { transactions; oldest_tx_id } := response;
 
-            if (Array.size(transactions) > 0) {
-              let t = response.transactions[response.transactions.size() - 1];
+            // Handle the retrieved transaction data
+            switch (lastTx) {
+              case (#Ok(transactions)) {
+                let txs = transactions.transactions;
 
-              var to = Principal.fromText("un4fu-tqaaa-aaaab-qadjq-cai"); // dummy principal
-              var txAmount = 0.0;
-              var timestamp = t.timestamp;
-              switch (t.kind) {
-                case "burn" {
-                  switch (t.burn) {
-                    case (?burn) {
-                      to := recipient;
-                      txAmount := Float.fromInt(burn.amount);
+                if (Array.size(txs) > 0) {
+                  let tx = txs[0].transaction;
+
+                  // Verify if the transaction is a valid transfer
+                  switch (tx.kind) {
+                    case "transfer" {
+                      switch (tx.transfer) {
+                        case (?transfer) {
+                          let txRecipient = transfer.to.owner;
+                          let txAmount = Float.fromInt(transfer.amount) / 100_000_000;
+                          let txTimestamp = tx.timestamp;
+                          let txAge = Nat64.fromIntWrap(Time.now()) - txTimestamp;
+
+                          // Check if the transaction matches the expected recipient, amount, and is within the timeout
+                          if (txRecipient == recipientToCheck and txAmount == amountToCheck and txAge < timeout) {
+
+                            // Return a response indicating that the transaction was found
+                            return {
+                              status_code = 200;
+                              headers = [("content-type", "text/plain")];
+                              body = Text.encodeUtf8("Transaction found");
+                            };
+                          } else {
+                            // Return a response if the transaction amount is incorrect or too old
+                            return {
+                              status_code = 422;
+                              headers = [("content-type", "text/plain")];
+                              body = Text.encodeUtf8("Transaction amount incorrect or transaction too old: " # Float.toText(txAmount) # " " # Float.toText(amountToCheck));
+                            };
+                          };
+                        };
+                        case null {};
+                      };
                     };
-                    case null {};
+                    case _ {
+                      // Handle invalid transaction type
+                      return {
+                        status_code = 422;
+                        headers = [("content-type", "text/plain")];
+                        body = Text.encodeUtf8("Invalid transaction type");
+                      };
+                    };
+                  };
+
+                  // Return a response if the transaction is not valid
+                  return {
+                    status_code = 422;
+                    headers = [("content-type", "text/plain")];
+                    body = Text.encodeUtf8("Transaction is not valid");
+                  };
+                } else {
+                  // Return a response if no transactions were found
+                  return {
+                    status_code = 404;
+                    headers = [("content-type", "text/plain")];
+                    body = Text.encodeUtf8("No transactions found");
                   };
                 };
-                case "mint" {
-                  switch (t.mint) {
-                    case (?mint) {
-                      to := mint.to.owner;
-                      txAmount := Float.fromInt(mint.amount);
-                    };
-                    case null {};
-                  };
-                };
-                case "transfer" {
-                  switch (t.transfer) {
-                    case (?transfer) {
-                      to := transfer.to.owner;
-                      txAmount := Float.fromInt(transfer.amount);
-                    };
-                    case null {};
-                  };
-                };
-                case _ {};
               };
-
-              Debug.print("amount: " # Float.toText(amount));
-              Debug.print("txAmount: " # Float.toText(txAmount));
-
-              if (to == recipient and txAmount == amount and Nat64.fromIntWrap(Time.now()) - timestamp < timeout) {
-                Debug.print("New transaction for an amount of " # Float.toText(amount) # " ckBTC");
-
+              case (#Err(error)) {
+                // Log and return a response for internal errors
                 return {
-                  status_code = 200;
+                  status_code = 500;
                   headers = [("content-type", "text/plain")];
-                  body = Text.encodeUtf8("Transaction found");
+                  body = Text.encodeUtf8("Internal server error: " # error.message);
                 };
               };
-              return {
-                status_code = 404;
-                headers = [("content-type", "text/plain")];
-                body = Text.encodeUtf8("Transaction not found");
-              };
-            } else {
-              return {
-                status_code = 404;
-                headers = [("content-type", "text/plain")];
-                body = Text.encodeUtf8("Transactions not found");
-              };
-            };
-
-            return {
-              status_code = 200;
-              headers = [("content-type", "text/plain")];
-              body = Text.encodeUtf8("Request body parsed");
             };
           };
           case null {
+            // Return a response for invalid request body
             return {
               status_code = 400;
               headers = [("content-type", "text/plain")];
-              body = Text.encodeUtf8("Invalid request body [TEST]");
+              body = Text.encodeUtf8("Invalid request body");
             };
           };
         };

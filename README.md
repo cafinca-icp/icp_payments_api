@@ -116,11 +116,7 @@ dfx deploy --network local --specified-id mxzaz-hqaaa-aaaar-qaada-cai icrc1_ledg
 The index canister syncs the ledger transactions and indexes them by account.
 
 ```bash
-dfx deploy --network local icrc1_index --argument '
-  record {
-   ledger_id = (principal "mxzaz-hqaaa-aaaar-qaada-cai");
-  }
-'
+dfx deploy --network local icrc1_index --argument 'opt variant { Init = record { ledger_id = principal "mxzaz-hqaaa-aaaar-qaada-cai"; } }'
 ```
 
 ### Step 5: Deploy the pos-icp-integration-backend canister:

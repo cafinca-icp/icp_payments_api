@@ -7,11 +7,21 @@
     },
     "icrc1_index": {
       "type": "custom",
-      "candid": "icrc1_index.did",
-      "wasm": "https://download.dfinity.systems/ic/95787355499f3be929f2ab302ed44cdad7c64061/canisters/ic-icrc1-index.wasm.gz",
+      "candid": "https://raw.githubusercontent.com/dfinity/ic/master/rs/rosetta-api/icrc1/index-ng/index-ng.did",
+      "wasm": "https://download.dfinity.systems/ic/master/canisters/ic-icrc1-index-ng.wasm.gz",
       "remote": {
         "id": {
           "ic": "n5wcd-faaaa-aaaar-qaaea-cai"
+        }
+      }
+    },
+    "icrc1_ledger": {
+      "type": "custom",
+      "candid": "https://raw.githubusercontent.com/dfinity/ic/24fd80082f40de6d0b3cd7876be09ef1aadbde86/rs/rosetta-api/icrc1/ledger/ledger.did",
+      "wasm": "https://download.dfinity.systems/ic/24fd80082f40de6d0b3cd7876be09ef1aadbde86/canisters/ic-icrc1-ledger.wasm.gz",
+      "remote": {
+        "id": {
+          "ic": "mxzaz-hqaaa-aaaar-qaada-cai"
         }
       }
     }

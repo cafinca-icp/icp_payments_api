@@ -1,6 +1,3 @@
-Aquí tienes la versión en inglés para copiar directamente en tu repositorio de Git:
-
-```markdown
 # POS ICP Integration
 
 ## Introduction
@@ -139,6 +136,3 @@ This project represents a significant step towards integrating decentralized tec
 Community collaboration is essential to the ongoing success of this project. Every contribution, whether in the form of code, ideas, or testing, brings us closer to a comprehensive solution that can be widely adopted. We are excited about what the future holds and look forward to seeing how this technology can evolve and adapt to new needs.
 
 If you have ideas on how to improve the project or wish to get more involved, don't hesitate to join us. Together, we can make this POS-ICP integration not just a reality, but a powerful tool in the global digital ecosystem.
-```
-
-Feel free to use this text in your project documentation!

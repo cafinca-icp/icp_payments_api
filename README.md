@@ -1,148 +1,144 @@
+Aquí tienes la versión en inglés para copiar directamente en tu repositorio de Git:
+
+```markdown
 # POS ICP Integration
 
-## Development environment setup
+## Introduction
 
+### Purpose and Scope
+This project focuses on integrating point of sale (POS) systems with the Internet Computer (ICP) protocol, allowing users to make payments using multiple cryptocurrencies. The goal is to simplify and secure transactions in a decentralized environment, with advanced features such as smart payments and enhanced transaction verification.
+
+The development of this project has been funded by a grant from the DFINITY Foundation, enabling us to innovate in the area of decentralized payments.
+
+### Acknowledgments
+We would like to express our gratitude to the following contributors for their invaluable support:
+
+- **icp_hub mexico**: For their technical support and for facilitating community engagement, which has been crucial to the progress of the project.
+- **Cafinca**: For implementing and operating our vending machines in Mexico and Chile, providing a real-world environment to test and refine our integration.
+- **Community maintenance and participation**: We are grateful to Lazaro Roberto Luevano Serna and José de Jesús Bernal Muñoz for their ongoing code maintenance and active community involvement.
+
+### Invitation to Contribute
+We would love to see more people join the development of this project. The community is the driving force behind many innovations, and we are open to receiving your ideas, suggestions, and contributions. For those interested in contributing, please refer to our `CONTRIBUTING.md` file for detailed guidelines on how to get involved. Your participation will not only help improve the project but also enrich the experience for everyone involved.
+
+The core development team will continue to maintain and enhance the code, but we always welcome fresh perspectives from new contributors. Join us in this exciting technological journey!
+
+## Running the Project Locally
+
+### Prerequisites
+Before starting, ensure you have the following prerequisites installed:
+
+- Node.js and npm
+- DFINITY Canister SDK (`dfx`)
+- Python 3.11
+
+#### Yarn Installation
 ```bash
-# yarn installation
 npm install -g yarn
+```
 
-# dependencies installation
+#### Installing Dependencies
+```bash
 yarn install
 ```
 
-## Run formatting and linting
-
+### Formatting and Linting
+To keep the code clean and consistent, run the following command:
 ```bash
 npx prettier --write --plugin=prettier-plugin-motoko **/*.mo
 ```
 
-## Running the project locally
+### Local Project Deployment
+Follow these steps to run the project locally:
 
-If you want to test your project locally, you can use the following commands:
+1. **Start the local replica:**
+   ```bash
+   dfx start --clean --background
+   ```
 
-```bash
-# Starts the replica, running in the background
-dfx start --background
+2. **Deploy the Internet Identity canister:**
+   ```bash
+   dfx deploy --network local internet_identity
+   ```
 
-# Deploys your canisters to the replica and generates your candid interface
-dfx deploy
+3. **Save the current Principal:**
+   ```bash
+   export OWNER=$(dfx identity get-principal)
+   ```
+
+4. **Deploy the ckBTC ledger canister:**
+   ```bash
+   dfx deploy --network local --specified-id mxzaz-hqaaa-aaaar-qaada-cai icrc1_ledger --argument '
+   (variant {
+     Init = record {
+       token_name = "Local ckBTC";
+       token_symbol = "LCKBTC";
+       minting_account = record {
+         owner = principal "'${OWNER}'";
+       };
+       initial_balances = vec {
+         record {
+           record {
+             owner = principal "'${OWNER}'";
+           };
+           100_000_000_000;
+         };
+       };
+       metadata = vec {};
+       transfer_fee = 10;
+       archive_options = record {
+         trigger_threshold = 2000;
+         num_blocks_to_archive = 1000;
+         controller_id = principal "'${OWNER}'";
+       }
+     }
+   })
+   '
+   ```
+
+5. **Deploy the index canister:**
+   ```bash
+   dfx deploy --network local icrc1_index --argument 'opt variant { Init = record { ledger_id = principal "mxzaz-hqaaa-aaaar-qaada-cai"; } }'
+   ```
+
+6. **Deploy the pos-icp-integration-backend canister:**
+   ```bash
+   dfx deploy --network local pos-icp-integration-backend --argument '(0)'
+   ```
+
+### Testing the Mainnet Canister with Python
+
+1. **Create and activate the virtual environment:**
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the test:**
+   ```bash
+   python query_canister.py
+   ```
+
+The canister's source code and expected responses can be reviewed in `src/pos-icp-integration-backend/main.mo`.
+
+### Future Improvements
+Planned improvements include:
+
+- **Multitoken Payment**: Support for multiple tokens such as ckBTC, ICP, ckETH, CLT, and others.
+- **Enhanced Transaction Verification**: Implementation of more robust mechanisms for payment verification.
+- **Smart Payments**: Support for multi-instruction transactions.
+
+## Conclusion
+
+This project represents a significant step towards integrating decentralized technologies into the payment space, with the potential to transform how we interact with digital transactions. The functionalities we are developing aim not only to provide a smooth and secure user experience but also to lay the groundwork for future innovations in the decentralized finance space.
+
+Community collaboration is essential to the ongoing success of this project. Every contribution, whether in the form of code, ideas, or testing, brings us closer to a comprehensive solution that can be widely adopted. We are excited about what the future holds and look forward to seeing how this technology can evolve and adapt to new needs.
+
+If you have ideas on how to improve the project or wish to get more involved, don't hesitate to join us. Together, we can make this POS-ICP integration not just a reality, but a powerful tool in the global digital ecosystem.
 ```
 
-Once the job completes, your application will be available at `http://localhost:4943?canisterId={asset_canister_id}`.
-
-If you have made changes to your backend canister, you can generate a new candid interface with
-
-```bash
-npm run generate
-```
-
-at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.
-
-## Local Deployment
-
-This is initially took from icpos example (and taking solana pay as reference) but with some twist. There are some improvements we want to implement in the future:
-
-- Multitoken payment (ckbtc, icp, cketh, clt and many others)
-- Enhanced transaction verification
-- Multi instruction transactions (smart payments)
-
-### Step 1: Start a local instance of the replica:
-
-```bash
-dfx start --clean --background
-```
-
-### Step 2: Deploy the Internet Identity canister:
-
-Integration with the [Internet Identity](https://internetcomputer.org/internet-identity/) allows store owners to securely setup and manage their store. The Internet Identity canister is already deployed on the IC mainnet. For local development, you need to deploy it to your local instance of the IC.
-
-```bash
-dfx deploy --network local internet_identity
-```
-
-### Step 3: Save the current principal as a variable:
-
-The principal will be used when deploying the ledger canister.
-
-```bash
-export OWNER=$(dfx identity get-principal)
-```
-
-### Step 3: Deploy the ckBTC ledger canister:
-
-The responsibilities of the ledger canister is to keep track of token balances and handle token transfers.
-
-The ckBTC ledger canister is already deployed on the IC mainnet. ckBTC implements the [ICRC-1](https://internetcomputer.org/docs/current/developer-docs/integrations/icrc-1/) token standard. For local development, we deploy the ledger for an ICRC-1 token mimicking the mainnet setup.
-
-Take a moment to read the details of the call we are making below. Not only are we deploying the ledger canister, we are also:
-
-- Deploying the canister to the same canister ID as the mainnet ledger canister. This is to make it easier to switch between local and mainnet deployments.
-- Naming the token `Local ckBTC / LCKBTC`
-- Setting the owner principal to the principal we saved in the previous step.
-- Minting 100_000_000_000 tokens to the owner principal.
-- Setting the transfer fee to 10 LCKBTC.
-
-```bash
-dfx deploy --network local --specified-id mxzaz-hqaaa-aaaar-qaada-cai icrc1_ledger --argument '
-  (variant {
-    Init = record {
-      token_name = "Local ckBTC";
-      token_symbol = "LCKBTC";
-      minting_account = record {
-        owner = principal "'${OWNER}'";
-      };
-      initial_balances = vec {
-        record {
-          record {
-            owner = principal "'${OWNER}'";
-          };
-          100_000_000_000;
-        };
-      };
-      metadata = vec {};
-      transfer_fee = 10;
-      archive_options = record {
-        trigger_threshold = 2000;
-        num_blocks_to_archive = 1000;
-        controller_id = principal "'${OWNER}'";
-      }
-    }
-  })
-'
-```
-
-### Step 4: Deploy the index canister:
-
-The index canister syncs the ledger transactions and indexes them by account.
-
-```bash
-dfx deploy --network local icrc1_index --argument 'opt variant { Init = record { ledger_id = principal "mxzaz-hqaaa-aaaar-qaada-cai"; } }'
-```
-
-### Step 5: Deploy the pos-icp-integration-backend canister:
-
-The pos-icp-integration-backend canister manages the payment data generation and log a message when a payment is received.
-
-The `--argument '(0)'` argument is used to initialize the canister with `startBlock` set to 0. This is used to tell the canister to start monitoring the ledger from block 0. When deploying to the IC mainnet, this should be set to the current block height to prevent the canister from processing old transactions.
-
-```bash
-dfx deploy --network local pos-icp-integration-backend --argument '(0)'
-```
-
-## Testing mainnet canister with Python
-
-```bash
-# create virtual environment
-python3.11 -m venv .venv
-
-# activate virtual environment
-source .venv/bin/activate
-
-# install dependencies
-pip install -r requirements.txt
-
-# run the test
-python query_canister.py
-```
-
-source code of canister and expected responses can be reviewed at `src/pos-icp-integration-backend/main.mo`.
+Feel free to use this text in your project documentation!
